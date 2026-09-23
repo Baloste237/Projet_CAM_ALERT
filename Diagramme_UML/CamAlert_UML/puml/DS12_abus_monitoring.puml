@@ -1,0 +1,55 @@
+@startuml DS12_abus_monitoring
+title DS12 — Signalement d'un abus et détection de comportements abusifs
+autonumber
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+
+actor "Citoyen" as U
+participant "Application mobile\nCamAlert" as M
+participant "API CamAlert\n(Backend)" as API
+participant "Module Modération\n(Moderation)" as MOD
+participant "Service ML" as ML
+database "Base de données" as DB
+participant "Module Audit" as AUD
+participant "Application Web\nd'administration" as W
+actor "Modérateur /\nAdministrateur" as MODO
+
+== A — Signalement d'un abus par un utilisateur ==
+U -> M : « Signaler un abus » sur un incident ou un signalement\n(motif, commentaire)
+M -> API : signalerAbus(cible, motif, commentaire)
+API -> MOD : enregistrerRapportAbus(utilisateur, cible, motif)
+MOD -> DB : Enregistre RapportAbus (statut OUVERT)
+MOD --> API : rapport enregistré
+API --> M : accusé de réception
+M --> U : Confirme la prise en compte
+
+== B — Détection automatique de comportements abusifs (monitoring) ==
+MOD -> DB : Charge l'activité récente et ReputationUtilisateur
+DB --> MOD : données d'activité
+MOD -> ML : détecterAnomalies(activité des comptes)
+ML --> MOD : comptes ou signalements suspects
+MOD -> DB : Crée / enrichit des RapportAbus (motif FAUX_SIGNALEMENT ou SPAM)
+
+== C — Traitement par un modérateur ==
+MODO -> W : Ouvre les rapports d'abus OUVERTS
+W -> API : listerRapportsAbus(filtres)
+API -> MOD : lister(filtres)
+MOD -> DB : Requête
+DB --> MOD : rapports
+MOD --> API : rapports
+API --> W : rapports
+W --> MODO : Affiche les rapports et éléments concernés
+MODO -> W : Décide (rejeter le rapport, rejeter le signalement,\nsuspendre le compte)
+W -> API : traiterRapport(idRapport, décision)
+API -> MOD : traiterRapportAbus(rapport, décision)
+MOD -> DB : RapportAbus → TRAITE / REJETE\n(et, selon la décision : Signalement → REJETE,\nUtilisateur → SUSPENDU, ReputationUtilisateur mise à jour)
+MOD -> AUD : tracer(acteur, MODERATION, cible)
+AUD -> DB : Enregistre JournalAudit
+MOD --> API : décision appliquée
+API --> W : succès
+
+note over ML
+  Le ML propose des cas suspects ; la décision de sanction
+  reste prise par un modérateur.
+end note
+@enduml

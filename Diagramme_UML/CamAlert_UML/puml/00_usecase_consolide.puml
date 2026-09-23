@@ -1,0 +1,119 @@
+@startuml 00_usecase_consolide
+title CamAlert — Cas d'utilisation consolidé (proposition)
+
+left to right direction
+skinparam shadowing false
+skinparam usecase {
+  BackgroundColor White
+}
+
+actor "Citoyen" as CIT
+actor "Modérateur /\nOpérateur" as MODO
+actor "Administrateur" as ADM
+actor "Service spécialisé\n(externe)" as SVC
+actor "Fournisseur de\nnotifications push" as PUSH
+
+rectangle "CamAlert" {
+
+  package "Application mobile" {
+    usecase "Créer un compte" as UC1
+    usecase "S'authentifier" as UC2
+    usecase "Gérer son profil" as UC3 #LightYellow
+    usecase "Gérer un signalement" as UC4
+    usecase "Créer un signalement" as UC4a
+    usecase "Modifier un signalement" as UC4b
+    usecase "Annuler un signalement" as UC4c
+    usecase "Partager les coordonnées GPS" as UC5
+    usecase "Ajouter photo / vidéo" as UC6 #LightYellow
+    usecase "Consulter la carte et les\nincidents à proximité" as UC7 #LightYellow
+    usecase "Filtrer les alertes\n(type, gravité, distance, date, statut)" as UC8
+    usecase "Consulter les détails et\nsuivre l'évolution d'un incident" as UC9 #LightYellow
+    usecase "Confirmer / infirmer un incident" as UC10 #LightYellow
+    usecase "Signaler un abus ou un faux signalement" as UC11 #LightYellow
+    usecase "Consulter l'historique" as UC12 #LightYellow
+    usecase "Recevoir des notifications" as UC13 #LightYellow
+    usecase "Appeler un service" as UC14 #LightYellow
+    usecase "Consulter les services spécialisés" as UC15 #LightYellow
+  }
+
+  package "Application web d'administration" {
+    usecase "Gérer les utilisateurs" as A1
+    usecase "Gérer les rôles" as A1a
+    usecase "Faire du monitoring" as A2
+    usecase "Détecter les comportements abusifs" as A2a
+    usecase "Vérifier les informations\nd'un signalement" as A3
+    usecase "Consulter les preuves" as A3a #LightYellow
+    usecase "Confirmer / rejeter un signalement" as A3b #LightYellow
+    usecase "Modifier catégorie / gravité" as A3c #LightYellow
+    usecase "Gérer les incidents" as A4
+    usecase "Suivre un incident" as A4a
+    usecase "Confirmer la résolution" as A4b #LightYellow
+    usecase "Archiver un incident" as A4c
+    usecase "Orienter / transmettre au service\nle plus proche ou adéquat" as A5
+    usecase "Gérer les services spécialisés" as A6 #LightYellow
+    usecase "Consulter les statistiques" as A7 #LightYellow
+    usecase "Consulter le journal d'audit" as A8 #LightYellow
+    usecase "Gérer les paramètres" as A9 #LightYellow
+  }
+
+  package "Traitements automatiques (backend)" {
+    usecase "Vérifier la fiabilité\n(règles, ML, multimodal, RAG)" as S1 #LightYellow
+    usecase "Corréler les signalements\nen un incident" as S2 #LightYellow
+    usecase "Diffuser les alertes" as S3
+  }
+}
+
+CIT --> UC1
+CIT --> UC2
+CIT --> UC3
+CIT --> UC4
+CIT --> UC5
+CIT --> UC7
+CIT --> UC8
+CIT --> UC9
+CIT --> UC10
+CIT --> UC11
+CIT --> UC12
+CIT --> UC13
+CIT --> UC14
+UC4a --|> UC4
+UC4b --|> UC4
+UC4c --|> UC4
+UC4a ..> UC5 : <<include>>
+UC4a ..> UC6 : <<extend>>
+UC14 ..> UC15 : <<include>>
+
+MODO --> A3
+MODO --> A4
+MODO --> A5
+MODO --> A2
+ADM --> A1
+ADM --> A2
+ADM --> A6
+ADM --> A7
+ADM --> A8
+ADM --> A9
+ADM --> A4
+A1a --|> A1
+A2a --|> A2
+A3a ..> A3 : <<extend>>
+A3b ..> A3 : <<extend>>
+A3c ..> A3 : <<extend>>
+A4a --|> A4
+A4b --|> A4
+A4c --|> A4
+
+S1 ..> S2 : <<include>>
+S3 --> PUSH
+S3 ..> UC13 : alimente
+A5 --> SVC : transmission
+UC14 --> SVC : appel direct
+
+legend right
+  Blanc : cas d'utilisation du diagramme d'origine
+  Jaune : cas ajoutés (fonctionnalités décrites dans le cahier des charges
+  mais absentes du diagramme d'origine)
+  « Diffuser alertes » est déplacé vers le système (traitement automatique).
+  « Enregistrer un signalement » est fusionné dans « Créer un signalement ».
+endlegend
+@enduml

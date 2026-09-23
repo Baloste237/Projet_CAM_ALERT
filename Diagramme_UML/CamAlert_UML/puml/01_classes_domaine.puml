@@ -1,0 +1,301 @@
+@startuml 01_classes_domaine
+title CamAlert — Diagramme de classes du domaine
+' Les énumérations (StatutIncident, NiveauGravite, ...) sont détaillées dans 01b_enumerations.puml
+
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam nodesep 40
+skinparam ranksep 60
+skinparam packageStyle rectangle
+hide empty members
+
+' =====================================================
+package "Identité et accès" as PIA {
+  class Utilisateur {
+    +id : ID
+    +nom : String
+    +prenom : String
+    +email : String
+    +telephone : String
+    -motDePasseHash : String
+    +statut : StatutUtilisateur
+    +dateCreation : DateTime
+    +derniereConnexion : DateTime
+  }
+  class Role {
+    +id : ID
+    +type : RoleType
+    +libelle : String
+  }
+  class Permission {
+    +code : String
+    +description : String
+  }
+  class Appareil {
+    +id : ID
+    +jetonPush : String
+    +plateforme : String
+    +derniereActivite : DateTime
+  }
+  class PreferenceAlerte {
+    +alertesActives : boolean
+    +rayonAlerteKm : double
+  }
+  class ReputationUtilisateur {
+    +nbSignalements : int
+    +nbConfirmes : int
+    +nbRejetes : int
+    +scoreReputation : float
+    +dateMiseAJour : DateTime
+  }
+}
+
+' =====================================================
+package "Signalement" as PSIG {
+  class TypeIncident {
+    +id : ID
+    +code : String
+    +libelle : String
+    +actif : boolean
+    +typesServiceConcernes : TypeService [1..*]
+  }
+  class Localisation <<valeur>> {
+    +latitude : double
+    +longitude : double
+    +precisionMetres : double
+    +adresseApprox : String
+    +source : SourceLocalisation
+  }
+  class Signalement {
+    +id : ID
+    +description : String
+    +dateSignalement : DateTime
+    +dateSurvenue : DateTime
+    +niveauGraviteDeclare : NiveauGravite
+    +statut : StatutSignalement
+    +scoreFiabilite : float
+  }
+  abstract class Preuve {
+    +id : ID
+    +urlStockage : String
+    +typeMime : String
+    +tailleOctets : long
+    +dateAjout : DateTime
+  }
+  class PreuvePhoto {
+    +largeur : int
+    +hauteur : int
+  }
+  class PreuveVideo {
+    +dureeSecondes : int
+  }
+  class PreuveAutre {
+    +description : String
+  }
+  class RapportAbus {
+    +id : ID
+    +motif : MotifAbus
+    +commentaire : String
+    +date : DateTime
+    +statut : StatutRapportAbus
+  }
+}
+
+' =====================================================
+package "Incident" as PINC {
+  class Incident {
+    +id : ID
+    +dateCreation : DateTime
+    +dateMiseAJour : DateTime
+    +gravite : NiveauGravite
+    +statut : StatutIncident
+    +scoreFiabilite : float
+    +niveauConfiance : NiveauConfiance
+  }
+  class HistoriqueIncident {
+    +id : ID
+    +date : DateTime
+    +ancienStatut : StatutIncident
+    +nouveauStatut : StatutIncident
+    +motif : String
+  }
+  class Confirmation {
+    +id : ID
+    +date : DateTime
+    +type : TypeConfirmation
+    +commentaire : String
+  }
+}
+
+' =====================================================
+package "Vérification de fiabilité" as PVER {
+  class EvaluationFiabilite {
+    +id : ID
+    +date : DateTime
+    +scoreGlobal : float
+    +niveauConfiance : NiveauConfiance
+    +decision : DecisionVerification
+    +versionConfiguration : String
+  }
+  class FacteurFiabilite {
+    +type : TypeFacteur
+    +valeur : float
+    +poids : float
+    +explication : String
+  }
+  class ParametrePlateforme {
+    +cle : String
+    +valeur : String
+    +description : String
+    +dateModification : DateTime
+  }
+}
+
+' =====================================================
+package "Services spécialisés" as PSRV {
+  class ServiceSpecialise {
+    +id : ID
+    +nom : String
+    +type : TypeService
+    +numeroTelephone : String
+    +statut : StatutService
+    +modeIntegration : ModeIntegration
+  }
+  class ZoneIntervention {
+    +libelle : String
+    +geometrie : String
+  }
+  class ConfigurationIntegration {
+    +urlInterface : String
+    +methodeAuthentification : String
+    +formatEchange : String
+    +actif : boolean
+  }
+  class TransmissionIncident {
+    +id : ID
+    +dateTransmission : DateTime
+    +mode : ModeTransmission
+    +statut : StatutTransmission
+    +contenuTransmis : String
+    +referenceExterne : String
+  }
+  class ContactService {
+    +id : ID
+    +dateContact : DateTime
+    +numeroAppele : String
+    +origine : String
+  }
+}
+
+' =====================================================
+package "Notification et audit" as PNOT {
+  class Notification {
+    +id : ID
+    +type : TypeNotification
+    +titre : String
+    +message : String
+    +dateCreation : DateTime
+    +dateEnvoi : DateTime
+    +statut : StatutNotification
+  }
+  class JournalAudit {
+    +id : ID
+    +date : DateTime
+    +action : String
+    +typeEntite : String
+    +idEntite : String
+    +details : String
+    +adresseIp : String
+  }
+}
+
+' ---------- Héritage ----------
+Preuve <|-- PreuvePhoto
+Preuve <|-- PreuveVideo
+Preuve <|-- PreuveAutre
+
+' ---------- Identité et accès ----------
+Utilisateur "*" -- "1..*" Role : possède >
+Role "*" -- "*" Permission : accorde >
+Utilisateur "1" *-- "*" Appareil : utilise >
+Utilisateur "1" *-- "0..1" PreferenceAlerte
+Utilisateur "1" *-- "0..1" ReputationUtilisateur
+Utilisateur "*" -- "0..1" ServiceSpecialise : est rattaché à >
+
+' ---------- Signalement ----------
+Utilisateur "1" -- "*" Signalement : soumet >
+Signalement "1" *-- "0..*" Preuve : est étayé par >
+Signalement "1" *-- "1" Localisation
+Signalement "*" -- "1" TypeIncident : déclare >
+Utilisateur "1" -- "*" RapportAbus : émet >
+RapportAbus "*" -- "0..1" Signalement : vise >
+RapportAbus "*" -- "0..1" Incident : vise >
+
+' ---------- Incident ----------
+Incident "0..1" -- "1..*" Signalement : regroupe >
+Incident "*" -- "1" TypeIncident : est classé >
+Incident *-- "1" Localisation
+Incident "1" *-- "*" HistoriqueIncident : trace >
+Utilisateur "0..1" -- "*" HistoriqueIncident : auteur >
+Utilisateur "1" -- "*" Confirmation : effectue >
+Incident "1" -- "*" Confirmation : reçoit >
+
+' ---------- Vérification ----------
+Incident "1" -- "*" EvaluationFiabilite : est évalué par >
+Signalement "0..1" -- "*" EvaluationFiabilite : est évalué par >
+EvaluationFiabilite "1" *-- "1..*" FacteurFiabilite : agrège >
+
+' ---------- Services spécialisés ----------
+ServiceSpecialise "1" *-- "1" ZoneIntervention
+ServiceSpecialise "1" *-- "0..1" ConfigurationIntegration
+Incident "1" -- "*" TransmissionIncident : est transmis par >
+ServiceSpecialise "1" -- "*" TransmissionIncident : reçoit >
+Utilisateur "1" -- "*" ContactService : initie >
+ServiceSpecialise "1" -- "*" ContactService : est contacté par >
+Incident "0..1" -- "*" ContactService : concerne >
+
+' ---------- Notification et audit ----------
+Utilisateur "1" -- "*" Notification : reçoit >
+Incident "0..1" -- "*" Notification : concerne >
+Utilisateur "0..1" -- "*" JournalAudit : acteur >
+
+' ---------- Notes ----------
+note bottom of Signalement
+  Un **Signalement** est le témoignage d'un utilisateur.
+  Un **Incident** est l'événement agrégé : plusieurs
+  signalements peuvent être rattachés au même incident.
+  Le score du signalement est une donnée d'entrée,
+  le score de l'incident est le score consolidé.
+end note
+
+note bottom of Confirmation
+  Contrainte métier : au plus une confirmation
+  par utilisateur et par incident {unique(utilisateur, incident)}.
+end note
+
+note bottom of ServiceSpecialise
+  Un incident peut concerner PLUSIEURS services
+  (ex. police + ambulance) : la relation Incident/Service
+  est donc plusieurs-à-plusieurs via TransmissionIncident.
+  ConfigurationIntegration n'existe que si
+  modeIntegration = PARTENAIRE_INTEGRE.
+end note
+
+note bottom of ContactService
+  Trace facultative et déclarative d'un appel direct.
+  L'appel lui-même n'est pas supervisé par CamAlert.
+end note
+
+note bottom of ParametrePlateforme
+  Paramètres et seuils de vérification configurables
+  depuis l'administration. Les valeurs sont à calibrer
+  expérimentalement : aucune valeur n'est fixée ici.
+end note
+
+note bottom of RapportAbus
+  Au moins l'une des deux cibles
+  (signalement ou incident) est renseignée.
+end note
+
+@enduml

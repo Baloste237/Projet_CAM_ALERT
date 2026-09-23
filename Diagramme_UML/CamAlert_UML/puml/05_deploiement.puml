@@ -1,0 +1,116 @@
+@startuml 05_deploiement
+title CamAlert — Diagramme de déploiement
+
+top to bottom direction
+skinparam shadowing false
+skinparam nodesep 40
+skinparam ranksep 70
+skinparam linetype ortho
+
+node "Smartphone utilisateur" as PHONE {
+  artifact "Application mobile CamAlert" as APPM
+  component "Capteur GPS" as GPS
+  component "Fonction téléphonique" as DIAL
+}
+
+node "Ordinateur de l'administrateur / modérateur" as PC {
+  node "Navigateur web" as BROW {
+    artifact "Application Web d'administration" as APPW
+  }
+}
+
+rectangle "Infrastructure CamAlert" as INFRA {
+
+  node "Serveur d'application" as SRVAPP {
+    artifact "Fichiers de l'application Web\n(hébergement à définir)" as WEBFILES
+    node "Backend CamAlert\n(monolithe modulaire — hypothèse)" as BACK {
+      component "API" as API
+      component "Auth" as B_AUTH
+      component "Signalements" as B_REP
+      component "Incidents\n+ corrélation" as B_INC
+      component "Vérification" as B_VER
+      component "Notifications" as B_NOT
+      component "Services spécialisés" as B_SRV
+      component "Modération" as B_MOD
+      component "Audit" as B_AUD
+    }
+  }
+
+  node "Serveur IA" as SRVIA {
+    component "Service ML" as ML
+    component "Service d'analyse\nmultimodale (texte / images / vidéos)" as MM
+    component "Service RAG" as RAG
+    component "Modèle de langage (LLM)" as LLM
+  }
+
+  node "Serveur de données" as SRVDATA {
+    database "Base de données principale" as DB
+    database "Index vectoriel /\nbase de connaissances (RAG)" as KB
+    storage "Stockage des médias\n(photos, vidéos)" as STO
+  }
+}
+
+cloud "Services externes" as CLOUD {
+  node "Service de cartographie" as MAP
+  node "Fournisseur de\nnotifications push" as PUSH
+  node "Réseau téléphonique /\nopérateur mobile" as TELNET
+}
+
+cloud "Services spécialisés\n(systèmes externes, non hébergés par CamAlert)" as SVCS {
+  node "Service partenaire intégré\n(interface convenue)" as PART
+  node "Service téléphonique\n(numéro d'appel)" as SVCTEL
+  node "Service externe non intégré" as SVCEXT
+}
+
+' ---------- Clients ↔ backend ----------
+APPM --> API : HTTPS
+APPW --> API : HTTPS
+APPW ..> WEBFILES : chargement de l'application
+
+' ---------- Backend ↔ IA ----------
+B_VER --> ML : évaluation
+B_VER --> MM : analyse
+B_VER --> RAG : contexte
+RAG --> LLM
+RAG --> KB
+B_MOD --> ML : anomalies
+
+' ---------- Backend ↔ données ----------
+BACK --> DB
+BACK --> STO
+
+' ---------- Backend ↔ externes ----------
+B_NOT --> PUSH : envoi de notifications
+PUSH ..> APPM : notification push
+APPM --> MAP : affichage cartographique
+B_SRV --> PART : transmission structurée\n(API d'intégration)
+B_SRV ..> SVCTEL : aucune liaison technique :\nrelais par un opérateur (téléphone)
+B_SRV ..> SVCEXT : aucune liaison technique :\nrelais par un opérateur (téléphone)
+
+' ---------- Appel direct ----------
+DIAL --> TELNET : appel voix (Cas A)
+TELNET --> SVCTEL
+TELNET --> SVCEXT
+TELNET --> PART
+APPM ..> DIAL : « Appeler un service »
+APPM ..> GPS : localisation
+
+note bottom of SVCS
+  **Cas A — appel direct** : smartphone → réseau téléphonique → service.
+  Le backend CamAlert n'intervient pas dans l'appel.
+  **Cas B — transmission d'un signalement** : backend → service partenaire
+  intégré (API) ; pour les autres services, CamAlert oriente et un opérateur
+  relaie l'information (hypothèse à valider).
+end note
+
+note right of SRVIA
+  Les services IA sont représentés séparément du backend
+  (charges de calcul différentes). Leur regroupement sur un
+  même serveur est possible selon les ressources disponibles.
+end note
+
+note bottom of INFRA
+  Aucune technologie de serveur, de base de données ou de
+  fournisseur n'est imposée : ces choix restent à définir.
+end note
+@enduml

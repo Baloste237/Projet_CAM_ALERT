@@ -1,0 +1,166 @@
+@startuml 04_packages
+title CamAlert — Diagramme de packages (organisation logique)
+
+top to bottom direction
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam nodesep 30
+skinparam ranksep 50
+
+package "CamAlert" as CA {
+
+  package "Mobile (application citoyen)" as MOB {
+    package "Authentification" as M_AUTH {
+    }
+    package "Profil" as M_PROF {
+    }
+    package "Signalement" as M_SIG {
+    }
+    package "Carte" as M_CARTE {
+    }
+    package "Alertes" as M_ALERT {
+    }
+    package "Notifications" as M_NOTIF {
+    }
+    package "Confirmation" as M_CONF {
+    }
+    package "AppelServices" as M_APPEL {
+    }
+    package "Historique" as M_HIST {
+    }
+  }
+
+  package "Web Admin (application d'administration)" as WEB {
+    package "Authentification" as W_AUTH {
+    }
+    package "Utilisateurs" as W_USR {
+    }
+    package "Signalements" as W_SIG {
+    }
+    package "Incidents" as W_INC {
+    }
+    package "Modération" as W_MOD {
+    }
+    package "ServicesSpécialisés" as W_SRV {
+    }
+    package "Statistiques" as W_STAT {
+    }
+    package "Audit" as W_AUD {
+    }
+  }
+
+  package "Backend (monolithe modulaire — hypothèse)" as BACK {
+    package "Auth" as B_AUTH {
+    }
+    package "Users" as B_USR {
+    }
+    package "Reports" as B_REP {
+    }
+    package "Incidents" as B_INC {
+    }
+    package "Verification" as B_VER {
+    }
+    package "Notifications" as B_NOT {
+    }
+    package "Services" as B_SRV {
+    }
+    package "Moderation" as B_MOD {
+    }
+    package "Audit" as B_AUD {
+    }
+  }
+
+  package "AI (services IA)" as AI {
+    package "ML" as AI_ML {
+    }
+    package "ComputerVision" as AI_CV {
+    }
+    package "NLP" as AI_NLP {
+    }
+    package "RAG" as AI_RAG {
+    }
+  }
+
+  package "Infrastructure (adaptateurs)" as INFRA {
+    package "Database" as I_DB {
+    }
+    package "Storage" as I_STO {
+    }
+    package "NotificationProvider" as I_NOTIF {
+    }
+    package "ExternalServices" as I_EXT {
+    }
+  }
+}
+
+package "Systèmes externes" as EXT {
+  package "Cartographie" as X_MAP {
+  }
+  package "Fournisseur de notifications push" as X_PUSH {
+  }
+  package "Réseau téléphonique" as X_TEL {
+  }
+  package "Services spécialisés externes" as X_SVC {
+  }
+}
+
+' ---------- Clients → backend ----------
+MOB ..> BACK : API
+WEB ..> BACK : API
+
+' ---------- Dépendances internes du backend ----------
+B_REP ..> B_VER
+B_REP ..> B_INC
+B_VER ..> B_INC
+B_INC ..> B_NOT
+B_INC ..> B_SRV
+B_MOD ..> B_INC
+B_MOD ..> B_USR
+B_USR ..> B_AUTH
+B_INC ..> B_AUD
+B_MOD ..> B_AUD
+B_SRV ..> B_AUD
+
+' ---------- Backend → IA ----------
+B_VER ..> AI_ML
+B_VER ..> AI_CV
+B_VER ..> AI_NLP
+B_VER ..> AI_RAG
+B_MOD ..> AI_ML
+
+' ---------- Backend → infrastructure ----------
+BACK ..> I_DB
+B_REP ..> I_STO
+AI_RAG ..> I_DB
+B_NOT ..> I_NOTIF
+B_SRV ..> I_EXT
+
+' ---------- Infrastructure → externes ----------
+I_NOTIF ..> X_PUSH
+I_EXT ..> X_SVC
+
+' ---------- Mobile → externes ----------
+M_CARTE ..> X_MAP
+M_APPEL ..> X_TEL
+X_TEL ..> X_SVC : appel direct
+
+note bottom of BACK
+  Les packages du backend sont des modules internes :
+  aucune hypothèse de microservices n'est faite.
+  L'authentification / autorisation (Auth) est sollicitée
+  par toutes les entrées de l'API (dépendance non tracée
+  pour la lisibilité).
+end note
+
+note bottom of AI
+  Composants IA : à déployer séparément si besoin
+  (voir diagramme de déploiement). Le RAG fournit du contexte,
+  il n'est pas le seul mécanisme de décision.
+end note
+
+note bottom of EXT
+  Systèmes externes : non hébergés par CamAlert.
+  Les services spécialisés ne sont pas tous connectés :
+  seuls certains disposent d'une interface convenue.
+end note
+@enduml

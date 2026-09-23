@@ -1,0 +1,50 @@
+@startuml DS10_resolution_incident
+title DS10 — Résolution d'un incident
+autonumber
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+
+participant "Service spécialisé\n(externe)" as SVC
+actor "Modérateur / Opérateur" as MODO
+participant "Application Web\nd'administration" as W
+participant "API CamAlert\n(Backend)" as API
+participant "Module Auth" as AUTH
+participant "Module Incidents" as INC
+participant "Module Audit" as AUD
+participant "Module Notifications" as NOT
+database "Base de données" as DB
+participant "Fournisseur de\nnotifications push" as PUSH
+participant "Application mobile\n(utilisateurs concernés)" as M
+
+SVC -> MODO : Informe que l'intervention est terminée\n(téléphone ou canal convenu)
+MODO -> W : Ouvre l'incident ACTIF et choisit « Confirmer la résolution »
+W -> API : confirmerRésolution(idIncident, commentaire)
+API -> AUTH : vérifierPermission(jeton, RESOLUTION_INCIDENT)
+alt permission refusée
+  AUTH --> API : refus
+  API --> W : erreur d'autorisation
+else permission accordée
+  API -> INC : résoudre(idIncident, commentaire)
+  INC -> DB : Vérifie le statut courant (ACTIF)
+  INC -> DB : Statut → RESOLU
+  INC -> DB : Enregistre HistoriqueIncident (ACTIF → RESOLU, auteur, motif)
+  INC -> AUD : tracer(acteur, RESOLUTION, incident)
+  AUD -> DB : Enregistre JournalAudit
+  INC -> NOT : notifierRésolution(incident)
+  NOT -> DB : Sélectionne les destinataires\n(utilisateurs alertés, auteurs, confirmants)
+  NOT -> PUSH : envoyer(jetonPush, message de résolution)
+  PUSH ->> M : notification push
+  NOT -> DB : Notification INCIDENT_RESOLU → ENVOYEE
+  INC --> API : incident résolu
+  API --> W : succès
+  W --> MODO : Affiche l'incident RESOLU
+end
+
+note over INC, DB
+  Le passage à ARCHIVE intervient ensuite (action manuelle
+  « Archiver incident » ou règle planifiée à définir).
+  Si le service dispose d'une interface partenaire, il peut informer la
+  plateforme, mais la confirmation de résolution reste une action humaine
+  (hypothèse à valider).
+end note
+@enduml

@@ -1,0 +1,183 @@
+@startuml 02_classes_services
+title CamAlert — Diagramme de classes des services applicatifs (backend)
+
+top to bottom direction
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam nodesep 35
+skinparam ranksep 55
+hide empty members
+
+package "Signalements et incidents" as SI {
+  class ServiceSignalement {
+    +creer(donnees, localisation) : Signalement
+    +ajouterPreuve(signalement, fichier) : Preuve
+    +modifier(signalement, donnees) : Signalement
+    +annuler(signalement) : void
+  }
+  class ServiceIncident {
+    +changerStatut(incident, statut, motif) : void
+    +modifierCategorie(incident, type) : void
+    +modifierGravite(incident, gravite) : void
+    +confirmerResolution(incident) : void
+    +archiver(incident) : void
+  }
+  class MoteurCorrelation {
+    +correler(signalement) : Incident
+    +rechercherSimilaires(signalement) : List<Signalement>
+  }
+  class ServiceConfirmation {
+    +enregistrer(utilisateur, incident, type) : Confirmation
+  }
+}
+
+package "Vérification de fiabilité" as VF {
+  class MoteurVerification {
+    +verifier(signalement) : EvaluationFiabilite
+    +reevaluer(incident) : EvaluationFiabilite
+  }
+  interface AnalyseurFiabilite {
+    +analyser(contexte : ContexteVerification) : FacteurFiabilite
+  }
+  class ContexteVerification {
+    +signalement : Signalement
+    +preuves : List<Preuve>
+    +similaires : List<Signalement>
+    +reputation : ReputationUtilisateur
+  }
+  class AnalyseurReglesMetier
+  class AnalyseurHistoriqueCompte
+  class AnalyseurSignalementsSimilaires
+  class AnalyseurML
+  class AnalyseurMultimodal
+  class AnalyseurContexteRAG
+  class CalculateurScore {
+    +agreger(facteurs : List<FacteurFiabilite>) : EvaluationFiabilite
+  }
+}
+
+package "IA (services distants)" as IA {
+  interface ClientML {
+    +scorer(caracteristiques) : float
+  }
+  interface ClientMultimodal {
+    +analyser(texte, medias) : float
+  }
+  interface ClientRAG {
+    +recupererContexte(signalement) : List<ExtraitContexte>
+  }
+  class ExtraitContexte {
+    +source : String
+    +texte : String
+    +pertinence : float
+  }
+}
+
+package "Notification" as NO {
+  class ServiceNotification {
+    +diffuser(incident) : void
+    +notifierMiseAJour(incident) : void
+    +notifierResolution(incident) : void
+  }
+  class SelecteurDestinataires {
+    +selectionner(incident) : List<Utilisateur>
+  }
+  interface FournisseurNotification {
+    +envoyer(appareil, message) : StatutNotification
+  }
+}
+
+package "Orientation vers les services spécialisés" as SS {
+  class ServiceServicesSpecialises {
+    +lister(filtres) : List<ServiceSpecialise>
+    +configurer(service) : ServiceSpecialise
+    +tracerContact(utilisateur, service) : ContactService
+  }
+  class IdentificateurService {
+    +identifier(incident) : List<ServiceSpecialise>
+  }
+  class ServiceTransmission {
+    +transmettre(incident, service) : TransmissionIncident
+  }
+  interface PasserelleTransmission {
+    +envoyer(incident, service) : StatutTransmission
+  }
+  class PasserelleApiPartenaire
+  class PasserelleRelaiOperateur
+}
+
+package "Transverse" as TR {
+  class ServiceAuthentification {
+    +inscrire(donnees) : Utilisateur
+    +connecter(identifiant, motDePasse) : Jeton
+    +verifierPermission(jeton, permission) : boolean
+  }
+  class ServiceUtilisateur {
+    +lister(filtres) : List<Utilisateur>
+    +enregistrer(donnees) : Utilisateur
+    +changerStatut(utilisateur, statut) : void
+    +affecterRoles(utilisateur, roles) : void
+  }
+  class ServiceModeration {
+    +traiterRapportAbus(rapport, decision) : void
+    +suspendreCompte(utilisateur) : void
+  }
+  class ServiceAudit {
+    +tracer(acteur, action, entite) : JournalAudit
+  }
+  interface StockageMedia {
+    +stocker(fichier) : String
+    +obtenirUrl(reference) : String
+  }
+}
+
+' ---------- Héritages / réalisations ----------
+AnalyseurFiabilite <|.. AnalyseurReglesMetier
+AnalyseurFiabilite <|.. AnalyseurHistoriqueCompte
+AnalyseurFiabilite <|.. AnalyseurSignalementsSimilaires
+AnalyseurFiabilite <|.. AnalyseurML
+AnalyseurFiabilite <|.. AnalyseurMultimodal
+AnalyseurFiabilite <|.. AnalyseurContexteRAG
+PasserelleTransmission <|.. PasserelleApiPartenaire
+PasserelleTransmission <|.. PasserelleRelaiOperateur
+
+' ---------- Dépendances ----------
+ServiceSignalement ..> StockageMedia
+ServiceSignalement ..> MoteurVerification : déclenche >
+MoteurVerification o-- "1..*" AnalyseurFiabilite
+MoteurVerification ..> ContexteVerification
+MoteurVerification ..> CalculateurScore
+AnalyseurML ..> ClientML
+AnalyseurMultimodal ..> ClientMultimodal
+AnalyseurContexteRAG ..> ClientRAG
+ClientRAG ..> ExtraitContexte
+MoteurVerification ..> MoteurCorrelation : utilise >
+MoteurVerification ..> ServiceIncident : propose une décision >
+ServiceConfirmation ..> MoteurVerification : demande une réévaluation >
+ServiceIncident ..> ServiceNotification
+ServiceIncident ..> ServiceTransmission
+ServiceIncident ..> ServiceAudit
+ServiceNotification ..> SelecteurDestinataires
+ServiceNotification ..> FournisseurNotification
+ServiceTransmission ..> IdentificateurService
+ServiceTransmission o-- PasserelleTransmission
+ServiceModeration ..> ServiceAudit
+ServiceModeration ..> ServiceIncident
+ServiceModeration ..> ServiceUtilisateur
+ServiceUtilisateur ..> ServiceAudit
+ServiceUtilisateur ..> ServiceAuthentification
+
+note right of CalculateurScore
+  Les pondérations et seuils de décision proviennent
+  de ParametrePlateforme (configurables, non figés).
+  Le RAG n'est qu'un facteur parmi d'autres :
+  il fournit du contexte, il ne décide pas.
+end note
+
+note right of PasserelleRelaiOperateur
+  Pour un service non intégré, la plateforme crée
+  une transmission A_TRANSMETTRE et un opérateur
+  relaie l'information par téléphone (hypothèse à valider).
+end note
+
+@enduml

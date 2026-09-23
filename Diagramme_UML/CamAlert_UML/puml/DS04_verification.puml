@@ -1,0 +1,70 @@
+@startuml DS04_verification
+title DS04 — Vérification d'un signalement et calcul du score de fiabilité
+autonumber
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+
+participant "Module Signalements\n(Reports)" as SIG
+participant "Module Vérification\n(Verification)" as VER
+participant "Moteur de règles\nmétier" as REG
+participant "Moteur de corrélation\n(Module Incidents)" as COR
+participant "Service ML" as ML
+participant "Service d'analyse\nmultimodale" as MM
+participant "Service RAG" as RAG
+database "Base de connaissances\n(index vectoriel)" as KB
+database "Base de données" as DB
+participant "Module Incidents" as INC
+
+SIG ->> VER : vérifier(idSignalement)
+VER -> DB : Charge signalement, preuves, historique du compte\n(ReputationUtilisateur), paramètres de vérification
+DB --> VER : données de contexte
+VER -> DB : Passe le statut à EN_VERIFICATION
+
+VER -> REG : appliquerRègles(signalement)
+REG -> REG : Validation des données, cohérence type / gravité,\nanalyse temporelle
+REG -> COR : rechercherSimilaires(signalement)
+COR -> DB : Recherche spatio-temporelle de signalements et incidents proches
+DB --> COR : candidats
+COR --> REG : signalements similaires / doublons éventuels
+REG -> DB : Consulte les confirmations de l'incident candidat
+REG --> VER : facteurs (règles, proximité géographique,\nsimilarité, confirmations, historique du compte)
+
+par analyses indépendantes
+  VER -> ML : scorer(caractéristiques du signalement)
+  ML --> VER : score ML (classification, anomalie)
+else analyse multimodale
+  opt le signalement contient des preuves
+    VER -> MM : analyser(texte, photos, vidéos)
+    MM --> VER : indicateurs de cohérence texte / médias
+  end
+else récupération de contexte
+  VER -> RAG : récupérerContexte(signalement)
+  RAG -> KB : Recherche sémantique (incidents passés, base de connaissances)
+  KB --> RAG : extraits pertinents
+  RAG --> VER : contexte (indice complémentaire, non décisionnel)
+end
+
+VER -> VER : Calcule le score de fiabilité\n(agrégation pondérée des facteurs,\npondérations configurables)
+VER -> DB : Enregistre EvaluationFiabilite et FacteurFiabilite
+VER -> COR : correler(signalement) (voir DS05)
+
+alt confiance FORTE
+  VER -> INC : décision VERIFIE
+  INC -> DB : Statut VERIFIE + HistoriqueIncident
+  ref over INC : DS06 — Diffusion  /  DS08 — Transmission
+else confiance MOYENNE
+  VER -> INC : décision REVUE_MANUELLE_REQUISE
+  INC -> DB : Maintient EN_VERIFICATION + HistoriqueIncident
+  note right of INC : Un opérateur / modérateur tranche\nvia l'application web (DS11)
+else confiance FAIBLE
+  VER -> INC : décision REJETE ou revue manuelle
+  INC -> DB : Statut REJETE (ou EN_VERIFICATION) + HistoriqueIncident
+end
+
+note over VER
+  Les niveaux de confiance et leurs seuils sont des paramètres
+  configurables (ParametrePlateforme), à calibrer expérimentalement :
+  aucune valeur n'est définie dans ce modèle.
+  Le RAG et le ML alimentent le score ; ils ne décident pas seuls.
+end note
+@enduml

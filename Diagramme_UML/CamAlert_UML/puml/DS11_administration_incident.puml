@@ -1,0 +1,63 @@
+@startuml DS11_administration_incident
+title DS11 — Administration d'un incident (application web)
+autonumber
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+
+actor "Administrateur /\nModérateur" as ADM
+participant "Application Web\nd'administration" as W
+participant "API CamAlert\n(Backend)" as API
+participant "Module Auth" as AUTH
+participant "Module Incidents" as INC
+participant "Module Audit" as AUD
+database "Base de données" as DB
+database "Stockage multimédia" as STO
+
+ADM -> W : Ouvre la liste des signalements / incidents\net applique des filtres (type, gravité, distance, date, statut)
+W -> API : rechercherIncidents(filtres)
+API -> AUTH : vérifierPermission(jeton, CONSULTER_INCIDENTS)
+AUTH --> API : accordée
+API -> INC : rechercher(filtres)
+INC -> DB : Requête filtrée
+DB --> INC : incidents
+INC --> API : liste
+API --> W : liste des incidents
+W --> ADM : Affiche la liste
+
+ADM -> W : Sélectionne un incident
+W -> API : obtenirDétails(idIncident)
+API -> INC : détails(idIncident)
+INC -> DB : Charge incident, signalements, score de fiabilité,\nconfirmations, historique
+INC -> STO : obtenirUrl(preuves)
+STO --> INC : accès aux photos / vidéos
+INC --> API : détails complets
+API --> W : détails complets
+W --> ADM : Affiche l'incident et ses preuves
+
+alt confirmer le signalement
+  ADM -> W : Confirme (statut VERIFIE)
+  W -> API : confirmer(idIncident)
+  API -> INC : changerStatut(VERIFIE)
+  ref over INC : DS06 — Diffusion  /  DS08 — Transmission
+else rejeter le signalement
+  ADM -> W : Rejette avec un motif
+  W -> API : rejeter(idIncident, motif)
+  API -> INC : changerStatut(REJETE, motif)
+  INC -> DB : Met à jour ReputationUtilisateur des auteurs concernés
+else modifier catégorie ou gravité
+  ADM -> W : Modifie le type d'incident ou le niveau de gravité
+  W -> API : modifier(idIncident, type, gravité)
+  API -> INC : modifierCatégorie / modifierGravité
+else archiver
+  ADM -> W : Archive l'incident résolu
+  W -> API : archiver(idIncident)
+  API -> INC : changerStatut(ARCHIVE)
+end
+
+INC -> DB : Enregistre la modification + HistoriqueIncident
+INC -> AUD : tracer(acteur, action, incident)
+AUD -> DB : Enregistre JournalAudit
+INC --> API : résultat
+API --> W : succès
+W --> ADM : Affiche l'incident mis à jour
+@enduml

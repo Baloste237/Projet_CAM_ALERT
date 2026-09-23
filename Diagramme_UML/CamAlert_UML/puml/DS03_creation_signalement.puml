@@ -1,0 +1,52 @@
+@startuml DS03_creation_signalement
+title DS03 — Création d'un signalement (application mobile)
+autonumber
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+
+actor "Citoyen" as U
+participant "Application mobile\nCamAlert" as M
+participant "Capteur GPS\ndu smartphone" as GPS
+participant "API CamAlert\n(Backend)" as API
+participant "Module Signalements\n(Reports)" as SIG
+database "Base de données" as DB
+database "Stockage multimédia" as STO
+participant "Module Vérification\n(Verification)" as VER
+
+U -> M : Ouvre « Créer un signalement »
+M -> GPS : demanderPosition()
+alt position obtenue
+  GPS --> M : latitude, longitude, précision
+else permission refusée ou GPS indisponible
+  M --> U : Propose de placer le point sur la carte / saisir l'adresse
+  U -> M : Position saisie manuellement
+end
+U -> M : Choisit le type d'incident, saisit la description,\nindique la gravité déclarée
+opt ajout de preuves
+  U -> M : Prend ou choisit une photo / une vidéo
+end
+
+M -> API : créerSignalement(type, description, gravité, localisation)
+API -> SIG : créer(données)
+SIG -> SIG : Valide les données (champs, gravité, coordonnées)
+alt données invalides
+  SIG --> API : erreur de validation
+  API --> M : erreur
+  M --> U : Demande de corriger la saisie
+else données valides
+  SIG -> DB : Enregistre Signalement (statut SOUMIS) et Localisation
+  DB --> SIG : identifiant du signalement
+  loop pour chaque photo / vidéo
+    M -> API : téléverserPreuve(idSignalement, fichier)
+    API -> SIG : ajouterPreuve(idSignalement, fichier)
+    SIG -> STO : stocker(fichier)
+    STO --> SIG : référence de stockage
+    SIG -> DB : Enregistre Preuve (photo / vidéo)
+  end
+  SIG --> API : signalement enregistré
+  API --> M : accusé (identifiant, statut SOUMIS)
+  M --> U : Confirme l'envoi du signalement
+  SIG ->> VER : lancerVérification(idSignalement) <<asynchrone>>
+  ref over VER : DS04 — Vérification d'un signalement
+end
+@enduml

@@ -1,0 +1,50 @@
+@startuml DS13_gestion_utilisateurs_roles
+title DS13 — Gestion des utilisateurs et des rôles (application web)
+autonumber
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+
+actor "Administrateur" as ADM
+participant "Application Web\nd'administration" as W
+participant "API CamAlert\n(Backend)" as API
+participant "Module Auth" as AUTH
+participant "Module Users" as USR
+participant "Module Audit" as AUD
+database "Base de données" as DB
+
+ADM -> W : Ouvre « Gérer utilisateurs »
+W -> API : listerUtilisateurs(filtres)
+API -> AUTH : vérifierPermission(jeton, GERER_UTILISATEURS)
+AUTH --> API : accordée
+API -> USR : lister(filtres)
+USR -> DB : Requête
+DB --> USR : utilisateurs et rôles
+USR --> API : liste
+API --> W : liste
+W --> ADM : Affiche les utilisateurs
+
+alt créer ou modifier un utilisateur
+  ADM -> W : Saisit ou modifie les informations
+  W -> API : enregistrerUtilisateur(données)
+  API -> USR : enregistrer(données)
+  USR -> DB : Crée / met à jour Utilisateur
+else changer le statut (suspendre / réactiver)
+  ADM -> W : Choisit un utilisateur et un statut
+  W -> API : changerStatut(idUtilisateur, statut)
+  API -> USR : changerStatut(idUtilisateur, statut)
+  USR -> DB : Met à jour StatutUtilisateur
+else gérer les rôles et permissions
+  ADM -> W : Attribue ou retire un rôle\n(CITOYEN, OPERATEUR, MODERATEUR, ADMINISTRATEUR)
+  W -> API : modifierRôles(idUtilisateur, rôles)
+  API -> AUTH : vérifierPermission(jeton, GERER_ROLES)
+  AUTH --> API : accordée
+  API -> USR : affecterRôles(idUtilisateur, rôles)
+  USR -> DB : Met à jour l'association Utilisateur – Rôle
+end
+
+USR -> AUD : tracer(acteur, action, utilisateur cible)
+AUD -> DB : Enregistre JournalAudit
+USR --> API : résultat
+API --> W : succès
+W --> ADM : Affiche la liste mise à jour
+@enduml

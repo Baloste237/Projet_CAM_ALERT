@@ -1,0 +1,43 @@
+@startuml DS09_appeler_service
+title DS09 — Appeler un service (appel direct depuis le smartphone)
+autonumber
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+
+actor "Citoyen" as U
+participant "Application mobile\nCamAlert" as M
+participant "API CamAlert\n(Backend)" as API
+participant "Module Services\nspécialisés (Services)" as SRV
+database "Base de données" as DB
+participant "Fonction téléphonique\ndu smartphone" as TEL
+participant "Service spécialisé\n(externe)" as SVC
+
+U -> M : Ouvre « Appeler un service »
+M -> API : listerServices(position, type)
+API -> SRV : lister(filtres)
+SRV -> DB : Services ACTIFS (nom, type, numéro, zone d'intervention)
+DB --> SRV : services
+SRV --> API : liste des services
+API --> M : liste des services
+M --> U : Affiche les services (police, pompiers, ambulance, ...)
+
+U -> M : Sélectionne le service concerné
+M -> U : Demande la confirmation de l'appel
+U -> M : Confirme
+M -> TEL : lancerAppel(numéro du service)
+TEL -> SVC : Appel téléphonique via le réseau mobile
+SVC <--> U : Conversation téléphonique (hors CamAlert)
+
+opt trace facultative de l'appel (si le réseau est disponible)
+  M ->> API : tracerContact(idService, idIncident?)
+  API -> SRV : tracerContact(utilisateur, service)
+  SRV -> DB : Enregistre ContactService
+end
+
+note over M, SVC
+  Le backend CamAlert n'intervient pas dans l'appel : l'application
+  sert d'interface d'orientation vers le bon service. La liste des
+  services peut être conservée localement afin de rester disponible
+  sans connexion (recommandation à valider).
+end note
+@enduml

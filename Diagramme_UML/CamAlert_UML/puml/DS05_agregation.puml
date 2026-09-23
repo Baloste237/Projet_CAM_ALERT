@@ -1,0 +1,47 @@
+@startuml DS05_agregation
+title DS05 — Agrégation de plusieurs signalements en un incident unique
+autonumber
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+
+participant "Module Vérification\n(Verification)" as VER
+participant "Moteur de corrélation\n(Module Incidents)" as COR
+database "Base de données" as DB
+
+== Signalement A — « Accident près du rond-point X », 14h02 ==
+VER -> COR : rechercherSimilaires(A)
+COR -> DB : Requête (zone proche, fenêtre de temps, type compatible)
+DB --> COR : aucun incident ni signalement proche
+COR --> VER : aucun similaire
+VER -> COR : correler(A)
+COR -> DB : Crée l'Incident I (statut SIGNALE) et rattache A
+COR --> VER : Incident I
+
+== Signalement B — « Accident au même endroit », 14h04 ==
+VER -> COR : rechercherSimilaires(B)
+COR -> DB : Requête (zone proche, fenêtre de temps, type compatible)
+DB --> COR : Incident I (signalement A)
+COR --> VER : similaire à I (proximité + délai courts)
+VER -> COR : correler(B)
+COR -> DB : Rattache B à I
+COR -> DB : Met à jour I (localisation de référence, nombre de signalements)
+
+== Signalement C — « Accident grave à proximité », 14h05 ==
+VER -> COR : rechercherSimilaires(C)
+COR -> DB : Requête (zone proche, fenêtre de temps, type compatible)
+DB --> COR : Incident I (signalements A, B)
+COR --> VER : similaire à I
+VER -> COR : correler(C)
+COR -> DB : Rattache C à I
+COR -> DB : Réévalue la gravité consolidée de I\n(règle de consolidation à définir)
+COR --> VER : Incident I (3 signalements)
+
+VER -> DB : Recalcule EvaluationFiabilite de I\n(recoupement de plusieurs auteurs)
+
+note over COR, DB
+  Les critères de similarité (distance, délai, type) et la règle de
+  consolidation de la gravité sont des paramètres configurables,
+  non déterminés à ce stade. Le signalement d'un même auteur
+  peut être traité comme doublon plutôt que comme recoupement.
+end note
+@enduml

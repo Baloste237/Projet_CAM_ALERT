@@ -1,0 +1,63 @@
+@startuml DS08_transmission_service
+title DS08 — Transmission d'un signalement à un service spécialisé
+autonumber
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+
+actor "Citoyen" as U
+participant "Application mobile\nCamAlert" as M
+participant "API CamAlert\n(Backend)" as API
+participant "Module Vérification\n(Verification)" as VER
+participant "Module Incidents" as INC
+participant "Module Services\nspécialisés (Services)" as SRV
+database "Base de données" as DB
+participant "Application Web\nd'administration" as W
+actor "Opérateur" as OP
+participant "Service partenaire intégré\n(système externe)" as PART
+participant "Service spécialisé non intégré\n(système externe)" as EXT
+
+U -> M : Crée un signalement
+ref over M, API : DS03 — Création d'un signalement
+ref over API, VER : DS04 — Vérification (score, niveau de confiance)
+VER -> INC : décision VERIFIE
+INC -> SRV : orienterIncident(incident)
+SRV -> DB : Charge les services ACTIFS\n(type, zone d'intervention, mode d'intégration)
+DB --> SRV : services candidats
+SRV -> SRV : Identifie le ou les services concernés\n(type d'incident + zone + proximité)
+
+alt aucun service adapté ou conditions non réunies\n(fiabilité insuffisante selon les paramètres)
+  SRV -> DB : Trace le motif (aucune transmission automatique)
+  SRV --> INC : revue manuelle par un opérateur
+else conditions de transmission réunies
+  loop pour chaque service identifié
+    alt modeIntegration = PARTENAIRE_INTEGRE
+      SRV -> PART : transmettre(id incident, type, description, localisation,\ndate, heure, gravité, liens photos/vidéos, niveau de fiabilité)
+      alt accusé de réception
+        PART --> SRV : accusé de réception
+        SRV -> DB : TransmissionIncident (API_PARTENAIRE, ACCUSEE)
+      else échec de l'interface partenaire
+        SRV -> DB : TransmissionIncident (ECHEC) puis bascule\nvers RELAI_OPERATEUR (A_TRANSMETTRE)
+      end
+    else modeIntegration = TELEPHONIQUE ou EXTERNE_NON_INTEGRE
+      SRV -> DB : TransmissionIncident (RELAI_OPERATEUR, A_TRANSMETTRE)
+    end
+  end
+  opt transmissions à relayer par un opérateur
+    SRV ->> W : Tâche de relais affichée à l'opérateur
+    OP -> W : Consulte l'incident et la fiche du service
+    OP -> EXT : Contacte le service (téléphone, hors CamAlert)
+    OP -> W : Marque la transmission comme effectuée
+    W -> API : mettreÀJourTransmission(TRANSMISE)
+    API -> DB : Met à jour TransmissionIncident + HistoriqueIncident
+  end
+  SRV -> INC : historiser la transmission
+  INC -> DB : HistoriqueIncident
+end
+
+note over PART, EXT
+  Les services spécialisés sont des systèmes externes : seuls ceux
+  qui disposent d'une interface convenue reçoivent une transmission
+  structurée. Pour les autres, CamAlert oriente et un opérateur relaie
+  (hypothèse à valider). Le service reste responsable de son intervention.
+end note
+@enduml

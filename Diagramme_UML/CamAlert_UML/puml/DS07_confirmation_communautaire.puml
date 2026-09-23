@@ -1,0 +1,44 @@
+@startuml DS07_confirmation_communautaire
+title DS07 — Confirmation ou infirmation d'un incident par un utilisateur
+autonumber
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+
+actor "Citoyen" as U
+participant "Application mobile\nCamAlert" as M
+participant "API CamAlert\n(Backend)" as API
+participant "Module Incidents" as INC
+participant "Module Vérification\n(Verification)" as VER
+database "Base de données" as DB
+participant "Module Notifications" as NOT
+
+U -> M : Consulte l'incident et choisit\n« Confirmer » ou « Infirmer »
+M -> API : soumettreConfirmation(idIncident, type)
+API -> INC : enregistrerConfirmation(utilisateur, incident, type)
+INC -> DB : Vérifie qu'aucune confirmation n'existe déjà\npour cet utilisateur et cet incident
+DB --> INC : résultat
+
+alt confirmation déjà enregistrée
+  INC --> API : refus (doublon)
+  API --> M : erreur
+  M --> U : Informe que l'avis a déjà été donné
+else première confirmation
+  INC -> DB : Enregistre Confirmation (CONFIRMATION / INFIRMATION)
+  INC -> VER : réévaluer(incident)
+  VER -> DB : Charge confirmations, infirmations, facteurs existants
+  DB --> VER : données
+  VER -> VER : Recalcule le score de fiabilité\n(le poids d'un avis peut dépendre de la proximité\net de la réputation : règle à définir)
+  VER -> DB : Enregistre EvaluationFiabilite
+  VER --> INC : nouveau score et niveau de confiance
+  alt le niveau de confiance ou la décision change
+    INC -> DB : Met à jour l'incident + HistoriqueIncident
+    opt statut modifié
+      INC -> NOT : notifierMiseAJour(incident)
+    end
+  end
+  INC -> DB : Met à jour ReputationUtilisateur de l'auteur du signalement
+  INC --> API : confirmation prise en compte
+  API --> M : succès
+  M --> U : Affiche l'état mis à jour de l'incident
+end
+@enduml

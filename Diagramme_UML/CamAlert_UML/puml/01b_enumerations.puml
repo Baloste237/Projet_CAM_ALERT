@@ -1,0 +1,140 @@
+@startuml 01b_enumerations
+title CamAlert — Énumérations du domaine
+top to bottom direction
+skinparam shadowing false
+skinparam packageStyle rectangle
+hide empty members
+
+package "Identité et accès" {
+  enum RoleType {
+    CITOYEN
+    OPERATEUR
+    MODERATEUR
+    ADMINISTRATEUR
+    RESPONSABLE_SERVICE
+  }
+  enum StatutUtilisateur {
+    ACTIF
+    SUSPENDU
+    DESACTIVE
+  }
+}
+
+package "Signalement" {
+  enum StatutSignalement {
+    SOUMIS
+    EN_VERIFICATION
+    RATTACHE
+    REJETE
+    ANNULE
+  }
+  enum NiveauGravite {
+    FAIBLE
+    MOYEN
+    ELEVE
+    CRITIQUE
+  }
+  enum SourceLocalisation {
+    GPS
+    SAISIE_MANUELLE
+  }
+  enum MotifAbus {
+    FAUX_SIGNALEMENT
+    CONTENU_INAPPROPRIE
+    SPAM
+    AUTRE
+  }
+  enum StatutRapportAbus {
+    OUVERT
+    TRAITE
+    REJETE
+  }
+}
+
+package "Incident" {
+  enum StatutIncident {
+    SIGNALE
+    EN_VERIFICATION
+    VERIFIE
+    ACTIF
+    RESOLU
+    ARCHIVE
+    REJETE
+  }
+  enum NiveauConfiance {
+    FAIBLE
+    MOYEN
+    FORT
+  }
+  enum TypeConfirmation {
+    CONFIRMATION
+    INFIRMATION
+  }
+}
+
+package "Vérification de fiabilité" {
+  enum DecisionVerification {
+    VERIFIE
+    REVUE_MANUELLE_REQUISE
+    REJETE
+  }
+  enum TypeFacteur {
+    REGLES_METIER
+    MACHINE_LEARNING
+    ANALYSE_MULTIMODALE
+    HISTORIQUE_COMPTE
+    SIGNALEMENTS_SIMILAIRES
+    PROXIMITE_GEOGRAPHIQUE
+    ANALYSE_TEMPORELLE
+    CONFIRMATIONS
+    CONTEXTE_RAG
+  }
+}
+
+package "Services spécialisés" {
+  enum TypeService {
+    POLICE
+    POMPIERS
+    AMBULANCE_MEDICAL
+    PROTECTION_CIVILE
+    SECOURS
+    SERVICES_ROUTIERS
+    AUTRE
+  }
+  enum StatutService {
+    ACTIF
+    INACTIF
+  }
+  enum ModeIntegration {
+    TELEPHONIQUE
+    PARTENAIRE_INTEGRE
+    EXTERNE_NON_INTEGRE
+  }
+  enum ModeTransmission {
+    API_PARTENAIRE
+    RELAI_OPERATEUR
+  }
+  enum StatutTransmission {
+    A_TRANSMETTRE
+    TRANSMISE
+    ACCUSEE
+    ECHEC
+  }
+}
+
+package "Notification" {
+  enum TypeNotification {
+    ALERTE_PROXIMITE
+    MISE_A_JOUR_INCIDENT
+    INCIDENT_RESOLU
+    DEMANDE_CONFIRMATION
+  }
+  enum StatutNotification {
+    EN_ATTENTE
+    ENVOYEE
+    LUE
+    ECHEC
+  }
+}
+
+@enduml

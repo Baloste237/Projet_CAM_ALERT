@@ -1,0 +1,43 @@
+@startuml 06_contexte_contact_services
+title CamAlert — Vue de contexte : appel direct (Cas A) et transmission d'un signalement (Cas B)
+
+left to right direction
+skinparam shadowing false
+
+actor "Citoyen" as C
+
+rectangle "CamAlert (plateforme intermédiaire)" as CA {
+  rectangle "Application mobile" as MOB
+  rectangle "Backend :\nvérification, qualification,\nidentification du service" as BACK
+  rectangle "Application Web\nd'administration" as WEB
+}
+
+rectangle "Réseau téléphonique" as TEL
+
+rectangle "Service spécialisé externe\n(Police, Pompiers, Ambulance,\nProtection civile, Secours...)" as SVC {
+  rectangle "Service téléphonique" as S1
+  rectangle "Service partenaire intégré" as S2
+  rectangle "Service externe non intégré" as S3
+}
+
+' Cas A
+C --> MOB : (A1) « Appeler un service »
+MOB --> TEL : (A2) lancement de l'appel
+TEL --> SVC : (A3) appel téléphonique
+
+' Cas B
+C --> MOB : (B1) crée un signalement
+MOB --> BACK : (B2) signalement + localisation
+BACK --> BACK : (B3) analyse, fiabilité,\nidentification du service
+BACK --> S2 : (B4a) transmission structurée (API)
+BACK ..> WEB : (B4b) tâche de relais\npour un opérateur
+WEB ..> S1 : (B5) contact téléphonique\npar un opérateur
+WEB ..> S3 : (B5) contact téléphonique\npar un opérateur
+SVC ..> BACK : (B6) statut d'intervention\n(saisi par un opérateur)
+BACK ..> MOB : (B7) notification des\nutilisateurs concernés
+
+note bottom of SVC
+  CamAlert n'est pas responsable de l'intervention :
+  le service reste maître de ses procédures.
+end note
+@enduml

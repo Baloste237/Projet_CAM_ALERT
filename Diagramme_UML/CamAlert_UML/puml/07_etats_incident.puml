@@ -1,0 +1,25 @@
+@startuml 07_etats_incident
+title CamAlert — Cycle de vie d'un incident
+
+skinparam shadowing false
+hide empty description
+
+[*] --> SIGNALE : premier signalement rattaché
+SIGNALE --> EN_VERIFICATION : lancement de la vérification (DS04)
+EN_VERIFICATION --> VERIFIE : confiance suffisante\nou validation d'un modérateur
+EN_VERIFICATION --> REJETE : rejet (automatique ou modérateur)
+VERIFIE --> ACTIF : diffusion de l'alerte (DS06)\net orientation (DS08)
+ACTIF --> RESOLU : confirmation de résolution (DS10)
+RESOLU --> ARCHIVE : archivage
+REJETE --> ARCHIVE : archivage (facultatif)
+
+note right of ACTIF
+  ACTIF = incident vérifié, diffusé
+  et suivi jusqu'à sa résolution.
+  L'intervention physique relève du service spécialisé.
+end note
+note right of EN_VERIFICATION
+  Les confirmations / infirmations (DS07) et de nouveaux
+  signalements (DS05) peuvent déclencher une réévaluation.
+end note
+@enduml

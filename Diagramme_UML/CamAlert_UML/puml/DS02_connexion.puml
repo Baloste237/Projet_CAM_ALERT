@@ -1,0 +1,40 @@
+@startuml DS02_connexion
+title DS02 — Connexion d'un utilisateur
+autonumber
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+
+actor "Citoyen" as U
+participant "Application mobile\nCamAlert" as M
+participant "API CamAlert\n(Backend)" as API
+participant "Module Auth\n(Authentification)" as AUTH
+database "Base de données" as DB
+participant "Fournisseur de\nnotifications push" as PUSH
+
+U -> M : Saisit identifiant et mot de passe
+M -> API : Demande de connexion(identifiant, mot de passe)
+API -> AUTH : authentifier(identifiant, mot de passe)
+AUTH -> DB : Charge Utilisateur et rôles
+DB --> AUTH : Utilisateur
+AUTH -> AUTH : Vérifie le mot de passe et le statut du compte
+
+alt identifiants valides et compte ACTIF
+  AUTH -> DB : Met à jour derniereConnexion
+  AUTH --> API : jeton d'accès + rôles
+  API --> M : session ouverte
+  M -> M : Conserve le jeton de façon sécurisée
+  M -> PUSH : Demande un jeton de notification
+  PUSH --> M : jetonPush
+  M -> API : enregistrerAppareil(jetonPush)
+  API -> DB : Enregistre / met à jour Appareil
+  M --> U : Accès à l'application
+else identifiants invalides
+  AUTH --> API : échec d'authentification
+  API --> M : erreur
+  M --> U : Message d'erreur
+else compte SUSPENDU ou DESACTIVE
+  AUTH --> API : accès refusé
+  API --> M : erreur
+  M --> U : Informe que le compte n'est pas actif
+end
+@enduml

@@ -1,0 +1,51 @@
+@startuml DS15_statistiques_audit_parametres
+title DS15 — Consultation des statistiques et des journaux d'audit, gestion des paramètres
+autonumber
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+
+actor "Administrateur" as ADM
+participant "Application Web\nd'administration" as W
+participant "API CamAlert\n(Backend)" as API
+participant "Module Auth" as AUTH
+participant "Module Audit" as AUD
+database "Base de données" as DB
+
+== Statistiques ==
+ADM -> W : Ouvre « Statistiques »
+W -> API : obtenirStatistiques(période, filtres)
+API -> AUTH : vérifierPermission(jeton, CONSULTER_STATISTIQUES)
+AUTH --> API : accordée
+API -> DB : Agrège incidents, signalements, statuts, délais
+DB --> API : indicateurs
+API --> W : indicateurs
+W --> ADM : Affiche les tableaux de bord
+
+== Journaux d'audit ==
+ADM -> W : Ouvre « Journal d'audit » (filtres : acteur, action, date)
+W -> API : consulterAudit(filtres)
+API -> AUTH : vérifierPermission(jeton, CONSULTER_AUDIT)
+AUTH --> API : accordée
+API -> AUD : rechercher(filtres)
+AUD -> DB : Requête sur JournalAudit
+DB --> AUD : entrées d'audit
+AUD --> API : entrées
+API --> W : entrées
+W --> ADM : Affiche le journal
+
+== Paramètres de la plateforme ==
+ADM -> W : Modifie un paramètre (par ex. pondération ou seuil de vérification)
+W -> API : modifierParamètre(clé, valeur)
+API -> AUTH : vérifierPermission(jeton, GERER_PARAMETRES)
+AUTH --> API : accordée
+API -> DB : Met à jour ParametrePlateforme
+API -> AUD : tracer(acteur, MODIFICATION_PARAMETRE, clé)
+AUD -> DB : Enregistre JournalAudit
+API --> W : succès
+W --> ADM : Confirme la modification
+
+note over API, DB
+  Les valeurs des paramètres de vérification sont à calibrer
+  expérimentalement ; leur modification est tracée.
+end note
+@enduml

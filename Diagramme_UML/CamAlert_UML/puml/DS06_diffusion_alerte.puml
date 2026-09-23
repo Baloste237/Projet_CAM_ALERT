@@ -1,0 +1,46 @@
+@startuml DS06_diffusion_alerte
+title DS06 — Diffusion d'une alerte à partir d'un incident vérifié
+autonumber
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+
+participant "Module Incidents" as INC
+participant "Module Notifications" as NOT
+database "Base de données" as DB
+participant "Fournisseur de\nnotifications push" as PUSH
+participant "Application mobile\n(utilisateurs concernés)" as M
+participant "API CamAlert\n(Backend)" as API
+actor "Citoyen concerné" as U2
+
+INC -> DB : Incident VERIFIE → statut ACTIF + HistoriqueIncident
+INC -> NOT : diffuser(incident)
+NOT -> DB : Sélectionne les destinataires :\nutilisateurs ACTIFS dont la PréférenceAlerte\nactive et le rayon couvrent l'incident
+DB --> NOT : destinataires et appareils (jetonPush)
+NOT -> DB : Crée les Notification (EN_ATTENTE)
+
+loop pour chaque destinataire
+  NOT -> PUSH : envoyer(jetonPush, message d'alerte)
+  alt envoi accepté
+    PUSH ->> M : notification push
+    NOT -> DB : Notification → ENVOYEE
+  else échec d'envoi
+    NOT -> DB : Notification → ECHEC
+  end
+end
+
+U2 -> M : Ouvre la notification
+M -> API : consulterIncident(idIncident)
+API -> INC : obtenirDétails(idIncident)
+INC -> DB : Charge incident, statut, preuves autorisées
+DB --> INC : détails
+INC --> API : détails de l'incident
+API --> M : détails de l'incident
+API -> DB : Notification → LUE
+M --> U2 : Affiche l'incident (carte, gravité, statut)
+
+note over NOT
+  La diffusion est déclenchée par la plateforme après vérification,
+  et non par un citoyen : le cas d'utilisation « Diffuser alertes »
+  est donc porté par le système.
+end note
+@enduml

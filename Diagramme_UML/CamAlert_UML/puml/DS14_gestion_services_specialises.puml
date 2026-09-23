@@ -1,0 +1,51 @@
+@startuml DS14_gestion_services_specialises
+title DS14 — Gestion des services spécialisés (numéros, zones, mode d'intégration)
+autonumber
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+
+actor "Administrateur" as ADM
+participant "Application Web\nd'administration" as W
+participant "API CamAlert\n(Backend)" as API
+participant "Module Auth" as AUTH
+participant "Module Services\nspécialisés (Services)" as SRV
+participant "Module Audit" as AUD
+database "Base de données" as DB
+
+ADM -> W : Ouvre « Services spécialisés »
+W -> API : listerServices()
+API -> SRV : lister()
+SRV -> DB : Requête
+DB --> SRV : services
+SRV --> API : services
+API --> W : services
+W --> ADM : Affiche la liste
+
+ADM -> W : Crée ou modifie un service : nom, type, numéro de téléphone,\nzone d'intervention, statut, mode d'intégration
+opt mode d'intégration = PARTENAIRE_INTEGRE
+  ADM -> W : Renseigne la configuration d'intégration\n(interface, authentification, format d'échange)
+end
+W -> API : enregistrerService(données)
+API -> AUTH : vérifierPermission(jeton, GERER_SERVICES)
+AUTH --> API : accordée
+API -> SRV : configurer(service)
+SRV -> SRV : Valide les données (numéro, zone, cohérence du mode)
+alt données valides
+  SRV -> DB : Enregistre ServiceSpecialise, ZoneIntervention\net ConfigurationIntegration (si applicable)
+  SRV -> AUD : tracer(acteur, CONFIGURATION_SERVICE, service)
+  AUD -> DB : Enregistre JournalAudit
+  SRV --> API : service enregistré
+  API --> W : succès
+  W --> ADM : Confirme la mise à jour
+else données invalides
+  SRV --> API : erreur de validation
+  API --> W : erreur
+  W --> ADM : Demande de corriger
+end
+
+note over SRV, DB
+  Les numéros et informations enregistrés ici alimentent la liste
+  affichée par « Appeler un service » (DS09) et le choix du service
+  lors d'une transmission (DS08).
+end note
+@enduml

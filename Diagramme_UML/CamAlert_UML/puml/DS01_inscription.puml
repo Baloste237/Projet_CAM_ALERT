@@ -1,0 +1,38 @@
+@startuml DS01_inscription
+title DS01 — Inscription d'un utilisateur
+autonumber
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+
+actor "Citoyen" as U
+participant "Application mobile\nCamAlert" as M
+participant "API CamAlert\n(Backend)" as API
+participant "Module Auth\n(Authentification)" as AUTH
+database "Base de données" as DB
+
+U -> M : Saisit nom, prénom, e-mail,\ntéléphone et mot de passe
+M -> M : Valide le format des champs
+M -> API : Demande d'inscription(données)
+API -> AUTH : créerCompte(données)
+AUTH -> DB : Recherche e-mail / téléphone déjà utilisés
+DB --> AUTH : résultat
+
+alt identifiant déjà utilisé
+  AUTH --> API : refus (compte existant)
+  API --> M : erreur d'inscription
+  M --> U : Affiche le motif du refus
+else identifiant disponible
+  AUTH -> AUTH : Hache le mot de passe
+  AUTH -> DB : Enregistre Utilisateur\n(rôle CITOYEN, statut ACTIF)
+  AUTH -> DB : Crée la PréférenceAlerte par défaut
+  DB --> AUTH : compte créé
+  AUTH --> API : compte créé
+  API --> M : inscription confirmée
+  M --> U : Confirme la création du compte
+end
+
+note over AUTH, DB
+  Une vérification de l'e-mail ou du téléphone peut être ajoutée :
+  elle n'est pas précisée dans le cas d'utilisation « Créer compte ».
+end note
+@enduml
